@@ -1,0 +1,10 @@
+
+
+BuildTest/bin
+BuildTest/obj
+
+JishoSharp/bin
+JishoSharp/obj
+
+packages/
+.vs/
