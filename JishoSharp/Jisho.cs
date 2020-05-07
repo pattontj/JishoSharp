@@ -13,20 +13,31 @@ using Newtonsoft.Json.Converters;
 namespace JishoSharp
 {
 
-    public enum QueryType { Plain, Tagged};
 
-    public partial class Jisho
+    /// <summary>
+    ///  Wraps returns from Jisho with some helper functions, etc.
+    /// </summary>
+    public class Jisho
     {
         [JsonIgnore()]
         private static HttpClient client = new HttpClient();
+        public (uint, uint) PageRange { get; private set; }
+        public List<JishoQuery> Data { get; private set; }
 
-        [JsonProperty("meta")]
-        public Meta Meta { get; set; }
+        public Jisho()
+        {
+            Data = new List<JishoQuery>();
+            PageRange = (1, 1);
+        }
 
-        [JsonProperty("data")]
-        public Datum[] Data { get; set; }
-
-        public static async Task<Jisho> Query(string searchParam, QueryType queryType, uint page = 1)
+        /// <summary>
+        /// Queries a single page worth (20 entries) of results
+        /// </summary>
+        /// <param name="searchParam">Search string</param>
+        /// <param name="queryType">Determines whether or not searchParam is a tag or plaintext</param>
+        /// <param name="page">Which page to retrieve</param>
+        /// <returns>Task<JishoQuery></returns>
+        public static async Task<JishoQuery> Query(string searchParam, QueryType queryType, uint page = 1)
         {
             try
             {
@@ -36,25 +47,98 @@ namespace JishoSharp
                     baseURI += "%23";
                 }
 
-                var response = await client.GetAsync("https://www.jisho.org/api/v1/search/words?keyword=%23"+searchParam+"&page="+page.ToString());
+                var response = await client.GetAsync("https://www.jisho.org/api/v1/search/words?keyword=%23" + searchParam + "&page=" + page.ToString());
                 response.EnsureSuccessStatusCode();
                 var responseText = await response.Content.ReadAsStringAsync();
 
-                var test = JsonConvert.DeserializeObject<Jisho>(responseText, Converter.Settings);
+                var test = JsonConvert.DeserializeObject<JishoQuery>(responseText, Converter.Settings);
 
                 if (test.Meta.Status != 200)
                     throw new HttpRequestException(test.Meta.Status.ToString());
                 else
                     return test;
-           
+
             }
             catch (HttpRequestException e)
             {
                 Console.WriteLine(e);
             }
-            
-            return new Jisho();
+
+            return new JishoQuery();
         }
+
+        /// <summary>
+        /// Queries multiple pages and stores them internally 
+        /// </summary>
+        /// <param name="searchParam">Search string</param>
+        /// <param name="queryType">Determines whether or not searchParam is a tag or plaintext</param>
+        /// <param name="startPage">Which page to start pagination from</param>
+        /// <param name="endPage">Which page to end pagination at</param>
+        public async void QueryPages(string searchParam, QueryType queryType, uint startPage, uint endPage)
+        {
+            PageRange = (startPage, endPage);
+
+            for (var i = startPage; i < endPage; i++)
+            {
+                var page = await Query(searchParam, queryType, i);
+                // Only enter pages with correct results 
+                if (page.Meta.Status == 200)
+                {
+                    if (page.Data.Length > 0)
+                    {
+                        Data.Add(page);
+                    }
+                    else
+                    {
+                        // If we run into an empty Data, we've requested a non-existent page 
+                        // so we set endPage to i and return 
+                        PageRange = (startPage, i);
+                        return;
+                    }
+                }
+            }
+        }
+
+       /// <summary>
+       /// Get page as in index from internal cached Data
+       /// </summary>
+       /// <param name="page">Page number to access</param>
+       /// <returns>JishoQuery</returns>
+        public JishoQuery Get(uint page)
+        {
+            if (page > 0)
+                page -= 0;
+            // Data only contains a range [0, b], so an offset needs to be calculated 
+            // to keep page numbers consistent for the user
+            uint offset = PageRange.Item2 - PageRange.Item1;
+
+            Console.WriteLine(page-offset);
+            try
+            {
+                return Data[(int)(page - offset)];
+            }
+            catch
+            {
+                throw new IndexOutOfRangeException("index: " + page + " is out of range in Query Data");
+            }
+            
+
+        }
+
+    }
+
+
+
+    public enum QueryType { Plain, Tagged};
+
+    public partial class JishoQuery
+    {
+        
+        [JsonProperty("meta")]
+        public Meta Meta { get; set; }
+
+        [JsonProperty("data")]
+        public Datum[] Data { get; set; }
 
     }
 
