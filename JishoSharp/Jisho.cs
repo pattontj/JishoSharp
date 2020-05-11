@@ -46,17 +46,17 @@ namespace JishoSharp
                 {
                     baseURI += "%23";
                 }
-
+                Console.WriteLine("Trying query at page = " + page);
                 var response = await client.GetAsync("https://www.jisho.org/api/v1/search/words?keyword=%23" + searchParam + "&page=" + page.ToString());
                 response.EnsureSuccessStatusCode();
                 var responseText = await response.Content.ReadAsStringAsync();
 
                 var test = JsonConvert.DeserializeObject<JishoQuery>(responseText, Converter.Settings);
 
-                if (test.Meta.Status != 200)
-                    throw new HttpRequestException(test.Meta.Status.ToString());
-                else
+                if (test.Meta.Status == 200)
                     return test;
+                else
+                    throw new HttpRequestException(test.Meta.Status.ToString());
 
             }
             catch (HttpRequestException e)
@@ -74,29 +74,15 @@ namespace JishoSharp
         /// <param name="queryType">Determines whether or not searchParam is a tag or plaintext</param>
         /// <param name="startPage">Which page to start pagination from</param>
         /// <param name="endPage">Which page to end pagination at</param>
-        public async void QueryPages(string searchParam, QueryType queryType, uint startPage, uint endPage)
+        public async Task QueryPages(string searchParam, QueryType queryType, uint startPage, uint endPage)
         {
-            PageRange = (startPage, endPage);
-
-            for (var i = startPage; i < endPage; i++)
+            for (var i = startPage - 1; i <= endPage - 1; i++)
             {
-                var page = await Query(searchParam, queryType, i);
-                // Only enter pages with correct results 
-                if (page.Meta.Status == 200)
-                {
-                    if (page.Data.Length > 0)
-                    {
-                        Data.Add(page);
-                    }
-                    else
-                    {
-                        // If we run into an empty Data, we've requested a non-existent page 
-                        // so we set endPage to i and return 
-                        PageRange = (startPage, i);
-                        return;
-                    }
-                }
+                var test = await Query(searchParam, queryType, i+1);
+                // Console.WriteLine(test.Meta.Status);
+                Data.Add(test);
             }
+            PageRange = (startPage, endPage);
         }
 
        /// <summary>
@@ -106,23 +92,21 @@ namespace JishoSharp
        /// <returns>JishoQuery</returns>
         public JishoQuery Get(uint page)
         {
-            if (page > 0)
-                page -= 0;
-            // Data only contains a range [0, b], so an offset needs to be calculated 
-            // to keep page numbers consistent for the user
-            uint offset = PageRange.Item2 - PageRange.Item1;
 
-            Console.WriteLine(page-offset);
+            var offset = (PageRange.Item2-1) - (PageRange.Item1-1);
+            if (offset < 0)
+                throw new Exception("Unexpected: offset less than zero in JishoQuery.Get");
+
             try
             {
-                return Data[(int)(page - offset)];
+                return Data[(int)page-(int)offset];
             }
             catch
             {
-                throw new IndexOutOfRangeException("index: " + page + " is out of range in Query Data");
-            }
-            
 
+            }
+
+            return new JishoQuery();
         }
 
     }
@@ -193,7 +177,7 @@ namespace JishoSharp
         public string[] EnglishDefinitions { get; set; }
 
         [JsonProperty("parts_of_speech")]
-        public PartsOfSpeech[] PartsOfSpeech { get; set; }
+        public string[] PartsOfSpeech { get; set; }
 
         [JsonProperty("links")]
         public Link[] Links { get; set; }

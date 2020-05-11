@@ -16,21 +16,35 @@ namespace BuildTest
     {
         static async Task Main(string[] args)
         {
+            
             var jisho = new Jisho();
-            jisho.QueryPages("jlpt-n5", QueryType.Tagged, 1, 2);
+            await jisho.QueryPages("jlpt-n5", QueryType.Tagged, 1, 3);
 
             Console.WriteLine("Data.Count = " + jisho.Data.Count);
 
-            for (uint i = 0; i <= jisho.PageRange.Item2; i++)
-            {
 
-                var test = jisho.Get(i);
-                Console.WriteLine( test.Data.Count() );
+    
+            /*
+
+            List<JishoQuery> array = new List<JishoQuery>();
+            for (int i = 0; i < 2; i++)
+            {
+               array.Add(
+                    await Jisho.Query("jlpt-n5", QueryType.Tagged, page: (uint)i + 1)
+                    );
+
             }
+
+            foreach (var thing in array)
+            {
+                Console.WriteLine(thing.Meta.Status);
+            }
+      */
+
 
 
             //Console.WriteLine(test.Data.ElementAt(0).Slug);
-            
+
 
 
             while (true) { }
