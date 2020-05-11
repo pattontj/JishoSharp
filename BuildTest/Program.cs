@@ -18,10 +18,12 @@ namespace BuildTest
         {
             
             var jisho = new Jisho();
-            await jisho.QueryPages("jlpt-n5", QueryType.Tagged, 1, 3);
+            await jisho.QueryPages("jlpt-n5", QueryType.Tagged, 33, 34);
 
             Console.WriteLine("Data.Count = " + jisho.Data.Count);
 
+            //var indexTest = jisho[0];
+            //Console.WriteLine(indexTest.Slug);
 
     
             /*

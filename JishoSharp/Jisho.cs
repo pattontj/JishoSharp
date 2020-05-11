@@ -20,7 +20,7 @@ namespace JishoSharp
     public class Jisho
     {
         [JsonIgnore()]
-        private static HttpClient client = new HttpClient();
+        private static readonly HttpClient client = new HttpClient();
         public (uint, uint) PageRange { get; private set; }
         public List<JishoQuery> Data { get; private set; }
 
@@ -29,6 +29,24 @@ namespace JishoSharp
             Data = new List<JishoQuery>();
             PageRange = (1, 1);
         }
+
+
+        /// <summary>
+        /// Used to directly index into the data of a query
+        /// </summary>
+        /// <param name="key">The index </param>
+        /// <returns></returns>
+        private Datum GetDatum(int key)
+        {
+            var datumIDX = key % 20;
+            return Data[datumIDX].Data[key - (20 * datumIDX)];
+        }
+        // TODO: Create test for this
+        public Datum this[int key]
+        {
+            get => GetDatum(key);
+        }
+
 
         /// <summary>
         /// Queries a single page worth (20 entries) of results
@@ -78,9 +96,17 @@ namespace JishoSharp
         {
             for (var i = startPage - 1; i <= endPage - 1; i++)
             {
-                var test = await Query(searchParam, queryType, i+1);
-                // Console.WriteLine(test.Meta.Status);
-                Data.Add(test);
+                var page = await Query(searchParam, queryType, i+1);
+                // If page contains data, then add it
+                if (page.Data.Length > 0)
+                    Data.Add(page);
+                else
+                {
+                    // Return early if we reached the end of query results
+                    // TODO: Create test for this
+                    PageRange = (startPage, i+1);
+                    return;
+                }
             }
             PageRange = (startPage, endPage);
         }
@@ -90,25 +116,29 @@ namespace JishoSharp
        /// </summary>
        /// <param name="page">Page number to access</param>
        /// <returns>JishoQuery</returns>
-        public JishoQuery Get(uint page)
+        public JishoQuery GetPage(uint page)
         {
-
-            var offset = (PageRange.Item2-1) - (PageRange.Item1-1);
-            if (offset < 0)
-                throw new Exception("Unexpected: offset less than zero in JishoQuery.Get");
-
-            try
+            if (page < PageRange.Item1 || page > PageRange.Item2)
             {
-                return Data[(int)page-(int)offset];
+                throw new IndexOutOfRangeException("Page = " + page + " outside of page range");
             }
-            catch
-            {
+            else { 
 
+                var offset = (PageRange.Item2-1) - (PageRange.Item1-1);
+                if (offset < 0)
+                    throw new Exception("Unexpected: offset less than zero in JishoQuery.Get");
+
+                try
+                {
+                    // TODO: Create test for this
+                    return Data[(int)page-(int)offset];
+                }
+                catch
+                {}
+
+                return new JishoQuery();
             }
-
-            return new JishoQuery();
         }
-
     }
 
 
@@ -159,7 +189,7 @@ namespace JishoSharp
         public bool Jmnedict { get; set; }
 
         [JsonProperty("dbpedia")]
-        public Uri Dbpedia { get; set; }
+        public Dbpedia Dbpedia { get; set; }
     }
 
     public partial class Japanese
@@ -229,7 +259,7 @@ namespace JishoSharp
     }
 
     public enum Jlpt { JlptN1, JlptN2, JlptN3, JlptN4, JlptN5 };
-
+    public enum Tag { Archaism, HonorificOrRespectfulSonkeigo, LinguisticsTerminology, UsuallyWrittenUsingKanaAlone, KansaiDialect };
     public enum PartsOfSpeech { Counter, NoAdjective, Noun, NounUsedAsASuffix, Place, Suffix, SuruVerb, WikipediaDefinition };
 
     internal static class Converter
@@ -242,6 +272,8 @@ namespace JishoSharp
             {
                 JlptConverter.Singleton,
                 PartsOfSpeechConverter.Singleton,
+                DbpediaConverter.Singleton,
+                TagConverter.Singleton,
                 new IsoDateTimeConverter { DateTimeStyles = DateTimeStyles.AssumeUniversal }
             },
         };
@@ -333,7 +365,7 @@ namespace JishoSharp
             throw new Exception("Cannot unmarshal type PartsOfSpeech");
         }
 
-        public override void WriteJson(JsonWriter writer, object untypedValue, JsonSerializer serializer)
+            public override void WriteJson(JsonWriter writer, object untypedValue, JsonSerializer serializer)
         {
             if (untypedValue == null)
             {
@@ -373,6 +405,113 @@ namespace JishoSharp
 
         public static readonly PartsOfSpeechConverter Singleton = new PartsOfSpeechConverter();
     }
+
+
+    internal class TagConverter : JsonConverter
+    {
+        public override bool CanConvert(Type t) => t == typeof(Tag) || t == typeof(Tag?);
+
+        public override object ReadJson(JsonReader reader, Type t, object existingValue, JsonSerializer serializer)
+        {
+            if (reader.TokenType == JsonToken.Null) return null;
+            var value = serializer.Deserialize<string>(reader);
+            switch (value)
+            {
+                case "Archaism":
+                    return Tag.Archaism;
+                case "Honorific or respectful (sonkeigo)":
+                    return Tag.HonorificOrRespectfulSonkeigo;
+                case "Usually written using kana alone":
+                    return Tag.UsuallyWrittenUsingKanaAlone;
+                case "linguistics terminology":
+                    return Tag.LinguisticsTerminology;
+            }
+            throw new Exception("Cannot unmarshal type Tag");
+        }
+
+        public override void WriteJson(JsonWriter writer, object untypedValue, JsonSerializer serializer)
+        {
+            if (untypedValue == null)
+            {
+                serializer.Serialize(writer, null);
+                return;
+            }
+            var value = (Tag)untypedValue;
+            switch (value)
+            {
+                case Tag.Archaism:
+                    serializer.Serialize(writer, "Archaism");
+                    return;
+                case Tag.HonorificOrRespectfulSonkeigo:
+                    serializer.Serialize(writer, "Honorific or respectful (sonkeigo)");
+                    return;
+                case Tag.UsuallyWrittenUsingKanaAlone:
+                    serializer.Serialize(writer, "Usually written using kana alone");
+                    return;
+                case Tag.LinguisticsTerminology:
+                    serializer.Serialize(writer, "linguistics terminology");
+                    return;
+            }
+            throw new Exception("Cannot marshal type Tag");
+        }
+
+        public static readonly TagConverter Singleton = new TagConverter();
+    }
+
+
+    public partial struct Dbpedia
+    {
+        public bool? Bool;
+        public Uri PurpleUri;
+
+        public static implicit operator Dbpedia(bool Bool) => new Dbpedia { Bool = Bool };
+        public static implicit operator Dbpedia(Uri PurpleUri) => new Dbpedia { PurpleUri = PurpleUri };
+    }
+
+    internal class DbpediaConverter : JsonConverter
+    {
+        public override bool CanConvert(Type t) => t == typeof(Dbpedia) || t == typeof(Dbpedia?);
+
+        public override object ReadJson(JsonReader reader, Type t, object existingValue, JsonSerializer serializer)
+        {
+            switch (reader.TokenType)
+            {
+                case JsonToken.Boolean:
+                    var boolValue = serializer.Deserialize<bool>(reader);
+                    return new Dbpedia { Bool = boolValue };
+                case JsonToken.String:
+                case JsonToken.Date:
+                    var stringValue = serializer.Deserialize<string>(reader);
+                    try
+                    {
+                        var uri = new Uri(stringValue);
+                        return new Dbpedia { PurpleUri = uri };
+                    }
+                    catch (UriFormatException) { }
+                    break;
+            }
+            throw new Exception("Cannot unmarshal type Dbpedia");
+        }
+
+        public override void WriteJson(JsonWriter writer, object untypedValue, JsonSerializer serializer)
+        {
+            var value = (Dbpedia)untypedValue;
+            if (value.Bool != null)
+            {
+                serializer.Serialize(writer, value.Bool.Value);
+                return;
+            }
+            if (value.PurpleUri != null)
+            {
+                serializer.Serialize(writer, value.PurpleUri.ToString());
+                return;
+            }
+            throw new Exception("Cannot marshal type Dbpedia");
+        }
+
+        public static readonly DbpediaConverter Singleton = new DbpediaConverter();
+    }
+
 }
 
 
