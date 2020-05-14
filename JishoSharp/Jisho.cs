@@ -111,7 +111,6 @@ namespace JishoSharp
                 else
                 {
                     // Return early if we reached the end of query results
-                    // TODO: Create test for this
                     PageRange = (startPage, i+1);
                     return;
                 }
@@ -120,7 +119,7 @@ namespace JishoSharp
         }
 
        /// <summary>
-       /// Get page as in index from internal cached Data
+       /// Get page as in index from internal cached Data, with page indexing starts at 1.
        /// </summary>
        /// <param name="page">Page number to access</param>
        /// <returns>JishoQuery</returns>
@@ -138,7 +137,6 @@ namespace JishoSharp
 
                 try
                 {
-                    // TODO: Create test for this
                     return Data[(int)page-(int)offset];
                 }
                 catch
