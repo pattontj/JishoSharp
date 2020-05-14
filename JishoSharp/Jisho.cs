@@ -13,15 +13,23 @@ using Newtonsoft.Json.Converters;
 namespace JishoSharp
 {
 
-
     /// <summary>
     ///  Wraps returns from Jisho with some helper functions, etc.
     /// </summary>
     public class Jisho
     {
+        /// <summary>
+        /// HTML client used to get JSON query.
+        /// </summary>
         [JsonIgnore()]
         private static readonly HttpClient client = new HttpClient();
-        public (uint, uint) PageRange { get; private set; }
+        /// <summary>
+        /// Represents a range of queried and valid pages between First and Last.
+        /// </summary>
+        public (uint First, uint Last) PageRange { get; private set; }
+        /// <summary>
+        /// A list of non-empty queries
+        /// </summary>
         public List<JishoQuery> Data { get; private set; }
 
         public Jisho()
@@ -118,13 +126,13 @@ namespace JishoSharp
        /// <returns>JishoQuery</returns>
         public JishoQuery GetPage(uint page)
         {
-            if (page < PageRange.Item1 || page > PageRange.Item2)
+            if (page < PageRange.First || page > PageRange.Last)
             {
                 throw new IndexOutOfRangeException("Page = " + page + " outside of page range");
             }
             else { 
 
-                var offset = (PageRange.Item2-1) - (PageRange.Item1-1);
+                var offset = (PageRange.Last-1) - (PageRange.First-1);
                 if (offset < 0)
                     throw new Exception("Unexpected: offset less than zero in JishoQuery.Get");
 
@@ -142,9 +150,14 @@ namespace JishoSharp
     }
 
 
-
+    /// <summary>
+    /// Represents types of queries, such as using a tag, etc.
+    /// </summary>
     public enum QueryType { Plain, Tagged};
-
+    
+    /// <summary>
+    /// Abstracted representation of a JSON query.
+    /// </summary>
     public partial class JishoQuery
     {
         
