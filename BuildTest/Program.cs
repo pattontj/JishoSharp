@@ -22,27 +22,27 @@ namespace BuildTest
         {
             #region Initial Data Query
             var jisho = new Jisho();
-            await jisho.QueryPages("jlpt-n5", QueryType.Tagged, 1, 34);
+            await jisho.QueryPages("jlpt-n5", QueryType.Tagged, 1, 4);
 
-            Console.WriteLine("Data.Count = " + jisho.Data.Count);
+            Console.WriteLine("Data.Count = " + jisho.Pages.Count);
             #endregion
-
 
             #region GetPage Test
             {
-                Console.Write("GetPage test: ");
+                Console.WriteLine("GetPage test: ");
                 var page = await Jisho.Query("jlpt-n5", QueryType.Tagged, 1);
-                if (page != jisho.GetPage(1))
+
+                if (!page.Equals(jisho.GetPage(1)))
                 {
                     Console.WriteLine("Failed");
                     throw new Exception("BuildTest Error: GetPage index doesn't align with page numbers");
                 }
-                Console.WriteLine("Passed");
+                Console.WriteLine("Passed \n");
             }
             #endregion
 
             #region QueryPages Test
-            Console.Write("QueryPages test: ");
+            Console.WriteLine("QueryPages test: ");
 
             // TEST: Data Validity of query results and cached data
 
@@ -50,7 +50,7 @@ namespace BuildTest
             {
                 var p = await Jisho.Query("jlpt-n5", QueryType.Tagged, (uint)page);
 
-                if (p != jisho.GetPage((uint)page))
+                if (!p.Equals(jisho.GetPage((uint)page)))
                 {
                     Console.WriteLine("Failed");
                     throw new Exception("BuildTest Error: QueryPages cached data doesn't match static query");
@@ -58,20 +58,31 @@ namespace BuildTest
 
                 // TEST: Size of Data member matches PageRange
 
-                if (jisho.Data.Count != jisho.PageRange.Last)
+                if (jisho.Pages.Count != jisho.PageRange.Last)
                 {
-                    Console.WriteLine("Failed; Data.Count=" + jisho.Data.Count + " : PageRange.Last=" + jisho.PageRange.Last);
-                    throw new Exception("BuildTest Error: QueryPages returned length of Data does not match PageRange.Last");
+                    Console.WriteLine("Failed; Pages.Count=" + jisho.Pages.Count + " : PageRange.Last=" + jisho.PageRange.Last);
+                    throw new Exception("BuildTest Error: QueryPages returned length of Pages does not match PageRange.Last");
                 }
 
 
-                Console.WriteLine("Passed");
+                Console.WriteLine("Passed \n");
             }
             #endregion
 
-
+            #region Datum Indexing
+            {
+                Console.WriteLine("Datum Indexing test: ");
+                // Theoretically should contain datum entries 21-40
+                var page = jisho.GetPage(1);
+                if (page.Data.ElementAt(0) != jisho[1])
+                {
+                    Console.WriteLine("Failed");
+                }
+                Console.WriteLine("Passed \n");
+            }
+            #endregion
+            // Currently using this to hang the program so output can be read
             while (true) { }
-  
         }
     }
 }

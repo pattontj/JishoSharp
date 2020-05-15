@@ -30,11 +30,11 @@ namespace JishoSharp
         /// <summary>
         /// A list of non-empty queries
         /// </summary>
-        public List<JishoQuery> Data { get; private set; }
+        public List<JishoQuery> Pages { get; private set; }
 
         public Jisho()
         {
-            Data = new List<JishoQuery>();
+            Pages = new List<JishoQuery>();
             PageRange = (1, 1);
         }
 
@@ -46,8 +46,17 @@ namespace JishoSharp
         /// <returns></returns>
         private Datum GetDatum(int key)
         {
-            var datumIDX = key % 20;
-            return Data[datumIDX].Data[key - (20 * datumIDX)];
+            var datumIDX = key - 1 % 20;
+            try
+            {
+                Console.WriteLine("Key=" + ((key - 1) - (20 * datumIDX)));
+                return Pages[datumIDX].Data[(key - 1) - (20 * datumIDX)];
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw e;
+            }
         }
         // TODO: Create test for this
         public Datum this[int key]
@@ -104,49 +113,49 @@ namespace JishoSharp
         {
             for (var i = startPage - 1; i <= endPage - 1; i++)
             {
-                var page = await Query(searchParam, queryType, i+1);
+                var page = await Query(searchParam, queryType, i + 1);
                 // If page contains data, then add it
                 if (page.Data.Length > 0)
-                    Data.Add(page);
+                    Pages.Add(page);
                 else
                 {
                     // Return early if we reached the end of query results
-                    PageRange = (startPage, i+1);
+                    PageRange = (startPage, i + 1);
                     return;
                 }
             }
             PageRange = (startPage, endPage);
         }
 
-       /// <summary>
-       /// Get page as in index from internal cached Data, with page indexing starts at 1.
-       /// </summary>
-       /// <param name="page">Page number to access</param>
-       /// <returns>JishoQuery</returns>
+        /// <summary>
+        /// Get page as in index from internal cached Data, with page indexing starts at 1.
+        /// </summary>
+        /// <param name="page">Page number to access</param>
+        /// <returns>JishoQuery</returns>
         public JishoQuery GetPage(uint page)
         {
             if (page < PageRange.First || page > PageRange.Last)
             {
                 throw new IndexOutOfRangeException("Page = " + page + " outside of page range");
             }
-            else { 
+            else
+            {
 
-                var offset = (PageRange.Last-1) - (PageRange.First-1);
+                var offset = (PageRange.Last) - (PageRange.First) - 1;
                 if (offset < 0)
                     throw new Exception("Unexpected: offset less than zero in JishoQuery.Get");
 
                 try
                 {
-                    return Data[(int)page-(int)offset];
+                    return Pages[(int)page - (int)PageRange.First];
                 }
                 catch
-                {}
-
-                return new JishoQuery();
+                {
+                    throw new Exception("Error in GetPage: index=" + ((int)page - (int)offset));
+                }
             }
         }
     }
-
 
     /// <summary>
     /// Represents types of queries, such as using a tag, etc.
@@ -165,6 +174,35 @@ namespace JishoSharp
         [JsonProperty("data")]
         public Datum[] Data { get; set; }
 
+        /// <summary>
+        /// Checks for value equality between two JishoQueries.
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        public override bool Equals(object obj)
+        {
+            try
+            {
+                var other = (JishoQuery)obj;
+                if (other.Data.Length == this.Data.Length && other.Meta.Status == this.Meta.Status)
+                {
+                    for (int i = 0; i < Data.Length; i++)
+                    {
+                        var slug = Data[i].Slug == other.Data[i].Slug;
+                        // NOTE: If for some reason two words share the same writing, kanji and all
+                        //       then add more bools here to check
+                        if (slug)
+                            return true;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                    Console.WriteLine(e);
+                    throw e;
+            }
+            return false;
+        }
     }
 
     public partial class Datum
