@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
 using System.Text.Json;
 
 using JishoSharp;
@@ -81,6 +80,11 @@ namespace BuildTest
                 Console.WriteLine("Passed \n");
             }
             #endregion
+
+
+
+
+
             // Currently using this to hang the program so output can be read
             while (true) { }
         }

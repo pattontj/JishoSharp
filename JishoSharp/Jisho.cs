@@ -36,6 +36,7 @@ namespace JishoSharp
         {
             Pages = new List<JishoQuery>();
             PageRange = (1, 1);
+            client.BaseAddress = new Uri("https://jisho.org/api/v1/search/words?keyword=");
         }
 
 
@@ -76,22 +77,27 @@ namespace JishoSharp
         {
             try
             {
-                string baseURI = "https://www.jisho.org/api/v1/search/words/?keyword=";
+                string URITag = "";
                 if (queryType == QueryType.Tagged)
                 {
-                    baseURI += "%23";
+                    // poundsign 
+                    URITag += "%23";
                 }
                 Console.WriteLine("Trying query at page = " + page);
-                var response = await client.GetAsync("https://www.jisho.org/api/v1/search/words?keyword=%23" + searchParam + "&page=" + page.ToString());
+                var response = await client.GetAsync(client.BaseAddress + URITag + searchParam + "&page=" + page.ToString());
                 response.EnsureSuccessStatusCode();
                 var responseText = await response.Content.ReadAsStringAsync();
 
                 var test = JsonConvert.DeserializeObject<JishoQuery>(responseText, Converter.Settings);
 
                 if (test.Meta.Status == 200)
+                {
                     return test;
+                }
                 else
+                {
                     throw new HttpRequestException(test.Meta.Status.ToString());
+                }
 
             }
             catch (HttpRequestException e)
@@ -116,7 +122,9 @@ namespace JishoSharp
                 var page = await Query(searchParam, queryType, i + 1);
                 // If page contains data, then add it
                 if (page.Data.Length > 0)
+                { 
                     Pages.Add(page);
+                }
                 else
                 {
                     // Return early if we reached the end of query results
@@ -143,7 +151,9 @@ namespace JishoSharp
 
                 var offset = (PageRange.Last) - (PageRange.First) - 1;
                 if (offset < 0)
+                {
                     throw new Exception("Unexpected: offset less than zero in JishoQuery.Get");
+                }
 
                 try
                 {
@@ -179,6 +189,8 @@ namespace JishoSharp
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
+        // TODO: use 'is-typecasting'
+        // if (obj is JishoQuery otherObject)
         public override bool Equals(object obj)
         {
             try
@@ -205,6 +217,7 @@ namespace JishoSharp
         }
     }
 
+    // TODO: implement Equals override for JishoQuery Equals
     public partial class Datum
     {
         [JsonProperty("slug")]
@@ -217,7 +230,7 @@ namespace JishoSharp
         public string[] Tags { get; set; }
 
         [JsonProperty("jlpt")]
-        public Jlpt[] Jlpt { get; set; }
+        public JLPT[] Jlpt { get; set; }
 
         [JsonProperty("japanese")]
         public Japanese[] Japanese { get; set; }
@@ -307,7 +320,8 @@ namespace JishoSharp
         public long Status { get; set; }
     }
 
-    public enum Jlpt { JlptN1, JlptN2, JlptN3, JlptN4, JlptN5 };
+    // TODO: change namespace names to just N5, N4 etc
+    public enum JLPT { N1, N2, N3, N4, N5 };
     public enum Tag { Archaism, HonorificOrRespectfulSonkeigo, LinguisticsTerminology, UsuallyWrittenUsingKanaAlone, KansaiDialect };
     public enum PartsOfSpeech { Counter, NoAdjective, Noun, NounUsedAsASuffix, Place, Suffix, SuruVerb, WikipediaDefinition };
 
@@ -330,7 +344,7 @@ namespace JishoSharp
 
     internal class JlptConverter : JsonConverter
     {
-        public override bool CanConvert(Type t) => t == typeof(Jlpt) || t == typeof(Jlpt?);
+        public override bool CanConvert(Type t) => t == typeof(JLPT) || t == typeof(JLPT?);
 
         public override object ReadJson(JsonReader reader, Type t, object existingValue, JsonSerializer serializer)
         {
@@ -339,17 +353,17 @@ namespace JishoSharp
             switch (value)
             {
                 case "jlpt-n1":
-                    return Jlpt.JlptN1;
+                    return JLPT.N1;
                 case "jlpt-n2":
-                    return Jlpt.JlptN2;
+                    return JLPT.N2;
                 case "jlpt-n3":
-                    return Jlpt.JlptN3;
+                    return JLPT.N3;
                 case "jlpt-n4":
-                    return Jlpt.JlptN4;
+                    return JLPT.N4;
                 case "jlpt-n5":
-                    return Jlpt.JlptN5;
+                    return JLPT.N5;
             }
-            throw new Exception("Cannot unmarshal type Jlpt");
+            throw new Exception("Cannot unmarshal type JLPT");
         }
 
         public override void WriteJson(JsonWriter writer, object untypedValue, JsonSerializer serializer)
@@ -359,26 +373,26 @@ namespace JishoSharp
                 serializer.Serialize(writer, null);
                 return;
             }
-            var value = (Jlpt)untypedValue;
+            var value = (JLPT)untypedValue;
             switch (value)
             {
-                case Jlpt.JlptN1:
+                case JLPT.N1:
                     serializer.Serialize(writer, "jlpt-n1");
                     return;
-                case Jlpt.JlptN2:
+                case JLPT.N2:
                     serializer.Serialize(writer, "jlpt-n2");
                     return;
-                case Jlpt.JlptN3:
+                case JLPT.N3:
                     serializer.Serialize(writer, "jlpt-n3");
                     return;
-                case Jlpt.JlptN4:
+                case JLPT.N4:
                     serializer.Serialize(writer, "jlpt-n4");
                     return;
-                case Jlpt.JlptN5:
+                case JLPT.N5:
                     serializer.Serialize(writer, "jlpt-n5");
                     return;
             }
-            throw new Exception("Cannot marshal type Jlpt");
+            throw new Exception("Cannot marshal type JLPT");
         }
 
         public static readonly JlptConverter Singleton = new JlptConverter();
