@@ -7,8 +7,7 @@ using System.Net.Http;
 using System.Globalization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-
-
+using System.Net;
 
 namespace JishoSharp
 {
@@ -31,9 +30,11 @@ namespace JishoSharp
         /// A list of non-empty queries
         /// </summary>
         public List<JishoQuery> Pages { get; private set; }
+        public int DatumLength { get; private set; }
 
         public Jisho()
         {
+            DatumLength = 0;
             Pages = new List<JishoQuery>();
             PageRange = (1, 1);
             client.BaseAddress = new Uri("https://jisho.org/api/v1/search/words?keyword=");
@@ -122,7 +123,7 @@ namespace JishoSharp
                 var page = await Query(searchParam, queryType, i + 1);
                 // If page contains data, then add it
                 if (page.Data.Length > 0)
-                { 
+                {
                     Pages.Add(page);
                 }
                 else
@@ -133,6 +134,33 @@ namespace JishoSharp
                 }
             }
             PageRange = (startPage, endPage);
+        }
+
+        // TODO: Document this better
+        /// <summary>
+        /// Overload for querypages to allow for a query for range (1, unknown)
+        /// </summary>
+        /// <param name="searchParam"></param>
+        /// <param name="queryType"></param>
+        /// <param name="startPage"></param>
+        /// <returns></returns>
+        public async Task QueryPages(string searchParam, QueryType queryType, uint startPage)
+        {
+            for (var i = startPage - 1; ; i++)
+            {
+                var page = await Query(searchParam, queryType, i + 1);
+                // If page contains data, then add it
+                if (page.Data.Length > 0)
+                {
+                    Pages.Add(page);
+                }
+                else
+                {
+                    // Return early if we reached the end of query results
+                    PageRange = (startPage, i + 1);
+                    return;
+                }
+            }
         }
 
         /// <summary>
@@ -164,6 +192,20 @@ namespace JishoSharp
                     throw new Exception("Error in GetPage: index=" + ((int)page - (int)offset));
                 }
             }
+        }
+
+        // TOOD: Webscrape jisho for detailed information on a given word
+        public void GetDetailedInfo(Datum word)
+        {
+
+            HttpWebRequest req = (HttpWebRequest)WebRequest.Create("https://jisho.org/search/%E5%B7%9D%20%23kanji");
+            HttpWebResponse resp = (HttpWebResponse)req.GetResponse();
+
+            if (resp.StatusCode == HttpStatusCode.OK)
+            {
+                // scrape
+            }
+
         }
     }
 
@@ -217,6 +259,9 @@ namespace JishoSharp
         }
     }
 
+
+        
+
     // TODO: implement Equals override for JishoQuery Equals
     public partial class Datum
     {
@@ -240,6 +285,11 @@ namespace JishoSharp
 
         [JsonProperty("attribution")]
         public Attribution Attribution { get; set; }
+
+            public void AsWord()
+            { 
+
+            }
     }
 
     public partial class Attribution
@@ -321,7 +371,7 @@ namespace JishoSharp
     }
 
     // TODO: change namespace names to just N5, N4 etc
-    public enum JLPT { N1, N2, N3, N4, N5 };
+    public enum JLPT { N1 = 1, N2, N3, N4, N5 };
     public enum Tag { Archaism, HonorificOrRespectfulSonkeigo, LinguisticsTerminology, UsuallyWrittenUsingKanaAlone, KansaiDialect };
     public enum PartsOfSpeech { Counter, NoAdjective, Noun, NounUsedAsASuffix, Place, Suffix, SuruVerb, WikipediaDefinition };
 
