@@ -12,6 +12,10 @@ using System.Net;
 namespace JishoSharp
 {
 
+    //  TODO: For kanji related queries, using https://kanjiapi.dev/
+    //        might be better than webscraping
+    // kanji frequency: https://gist.github.com/Kimtaro/50da080ff3cf6202f55a
+
     /// <summary>
     ///  Wraps returns from Jisho with some helper functions, etc.
     /// </summary>
