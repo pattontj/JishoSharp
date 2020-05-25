@@ -34,6 +34,9 @@ namespace JishoSharp
         /// A list of non-empty queries
         /// </summary>
         public List<JishoQuery> Pages { get; private set; }
+        /// <summary>
+        /// 
+        /// </summary>
         public int DatumLength { get; private set; }
 
         public Jisho()
@@ -52,11 +55,12 @@ namespace JishoSharp
         /// <returns></returns>
         private Datum GetDatum(int key)
         {
-            var datumIDX = key - 1 % 20;
+            var datumIDX = (key) % 20;
             try
             {
-                Console.WriteLine("Key=" + ((key - 1) - (20 * datumIDX)));
-                return Pages[datumIDX].Data[(key - 1) - (20 * datumIDX)];
+                
+                Console.WriteLine("Key=" + (datumIDX));
+                return Pages[key/20].Data[datumIDX];
             }
             catch (Exception e)
             {
@@ -125,6 +129,9 @@ namespace JishoSharp
             for (var i = startPage - 1; i <= endPage - 1; i++)
             {
                 var page = await Query(searchParam, queryType, i + 1);
+
+                DatumLength += page.Data.Length;
+
                 // If page contains data, then add it
                 if (page.Data.Length > 0)
                 {

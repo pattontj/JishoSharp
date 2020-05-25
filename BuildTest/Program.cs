@@ -82,7 +82,23 @@ namespace BuildTest
             #endregion
 
 
-            // TODO: Write test for DatumLength
+            #region DatumLength Test
+
+            Console.WriteLine("DatumLength test: ");
+
+            var datum = jisho[20];
+            var query = await Jisho.Query("jlpt-n5", QueryType.Tagged, page: 2);
+
+            if (datum.Equals(query.Data[0]))
+            {
+                Console.WriteLine("passed");
+            }
+            else
+            {
+                Console.WriteLine("failed");
+            }
+            #endregion
+
 
 
 
